@@ -1,6 +1,8 @@
 
 # All your SPF includes are belong to us
 
+How are you gentelmen !!
+
 ## Context
 
 Both an [article](https://caniphish.com/phishing-resources/blog/compromising-australian-supply-chains-at-scale) written by Sebastian Salla and observations made during technical assessments lead us to an experiment on SPF records of Danish domains. In particular, we focused on spoofing certain mail domains that have a SPF configuration that introduces risks of impersonating mail addresses at these domains.
