@@ -19,6 +19,10 @@ The objectives of the experiment were the following:
 * Targeting governemental or critical institutions in Denmark
 * Do the above for the least amount of money possible
 
+## Results
+
+We identified 4 of 259 tested domains at risk of this technique. They were all contacted in due time before this post.
+
 ## Dataset
 
 We used a rather restricted dataset to specifically target Danish institutions. Most of the domain names we gathered come from listing official government websites and crawling PDFs from these websites to get email addresses and extract the domain part of it.
