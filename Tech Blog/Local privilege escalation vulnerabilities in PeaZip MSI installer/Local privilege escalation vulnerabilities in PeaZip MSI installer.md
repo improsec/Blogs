@@ -1,3 +1,5 @@
+# Local privilege escalation vulnerabilities in PeaZip MSI installer
+
 This blog describes two local privilege escalation (LPE) vulnerabilities in [PeaZip](https://github.com/peazip/PeaZip), affecting versions up to 8.8.0. The vulnerabilities allow a low privileged user to become `NT AUTHORTY\SYSTEM`.
 
 The vulnerabilities were found during a challenge. As I last year found that [MSI installers created with "EXEMSI MSI Installer" can be vulnerable to LPE](https://improsec.com/tech-blog/privilege-escalation-vulnerability-in-ninjarmm); I thought more applications that use vulnerable EXEMSI versions must exist.
@@ -20,6 +22,7 @@ Only installations made with the MSI installer on PeaZip's GitHub are vulnerable
 * October 9, 2022: PeaZip releases version 8.9.0 with no MSI installer
 
 **Developer acknowledgement**
+
 ![](intro-developer-response.png)
 
 ### CVEs registered & affected versions
@@ -39,24 +42,30 @@ Insecure Access Control in MSI installer package of PeaZip version 7.7.1 to 8.8.
 In 2021, I disclosed a [local privilege escalation vulnerability in NinjaRMM Agent](https://improsec.com/tech-blog/privilege-escalation-vulnerability-in-ninjarmm) which was introduced as the NinjaOne developers used [EXEMSI MSI Wrapper](https://www.exemsi.com/) to “wrap” the EXE in an MSI allowing for easier deployment. Prior to my disclosure EXEMSI contacted their customers, and I identified and contacted other software vendors using the vulnerable MSI Wrapper to create awareness of the vulnerability.
 
 Identification of MSI Wrapper use was possible as MSI Wrapper adds the comment "Installer wrapped by MSI Wrapper":
+
 ![](cve1-ninjarmm.png)
 
 Most results are from online malware analysis tools, for example [PowerUp](https://github.com/PowerShellMafia/PowerSploit/blob/master/Privesc/PowerUp.ps1)'s `Write-UserAddMSI` was found to be using MSI Wrapper:
+
 ![](cve1-powerup.png)
 
 At the time I did not identify PeaZip, but by searching again I found PeaZip may be wrapped by MSI Wrapper:
+
 ![](cve1-peazip-thread.png)
 
 Properties of the latest MSI from PeaZip's GitHub (left), and the MSI in `C:\Windows\Installer` post installation (right) confirms the SourceForge finding:
+
 ![](cve1-peazip-properties.png)
 
 ### Walkthrough
 More details on identifying and exploiting the EXEMSI MSI Installer vulnerability can be read in [the original NinjaRMM blog post](https://improsec.com/tech-blog/privilege-escalation-vulnerability-in-ninjarmm).
 
 `MsiExec.exe` is executed with the repair flag `/fa` as the low privileged user:
+
 ![](cve1-walkthrough1.png)
 
 ProcMon shows the executable `peazip-8.8.0.WIN64.exe` is written to the low privileged user's `AppData\Local\Temp\` and later executed by System:
+
 ![](cve1-walkthrough2.png)
 
 The race-condition code from the NinjaRMM blog post is modified with new paths, and the exploit is run (each step corresponding to the steps in the below screenshot):
@@ -68,9 +77,11 @@ The race-condition code from the NinjaRMM blog post is modified with new paths, 
 ![](cve1-walkthrough3.png)
 
 ProcMon shows the race condition was won:
+
 ![](cve1-walkthrough4.png)
 
 A second later, the attacker-placed binary is executed by System:
+
 ![](cve1-walkthrough5.png)
 
 ## CVE-2022-(CVE pending) - Windows Installer Local Privilege Escalation by controlling program directory
@@ -80,27 +91,35 @@ Insecure Access Control in MSI installer package of PeaZip version 5.4.0 through
 ### Walkthrough
 **Method 1 - requires administrator interaction**
 `MsiExec.exe` is executed with the repair flag `/fa` as the low privileged user. Either the `Custom installation` or `No system integration` option is chosen in the installer GUI:
+
 ![](cve2-walkthrough1.png)
 
 The program directory is set to one the low privileged user is granted exploitable rights to (e.g. Full Control, Write, or Write Permissions). A stealthy directory could be `C:\ProgramData`, as low privileged users have Write rights (Create files/write data -> search order hijacking). For this walkthrough the user's local AppData is chosen:
+
 ![](cve2-walkthrough2.png)
 
 After reinstallation, all users of the system will still have PeaZip shortcuts:
+
 ![](cve2-walkthrough3.png)
 
 These shortcuts are stored in the Windows Start Menu directory:
+
 ![](cve2-walkthrough4.png)
 
 But all shortcuts, e.g. `PeaZip.lnk`, targets the new PeaZip program directory `C:\Users\nonroot\AppData\Local\PeaZip\peazip.exe`:
+
 ![](cve2-walkthrough5.png)
 
 The new program directory:
+
 ![](cve2-walkthrough6.png)
 
 The low privileged user is granted Full control on the directory and inherited to its binaries, e.g. `peazip.exe`:
+
 ![](cve2-walkthrough7.png)
 
 Next Everyone is granted read and execute to the new program directory:
+
 ![](cve2-walkthrough8.png)
 
 Next time a high privileged user executes PeaZip, e.g. via shortcuts or the right-click context menu, the low privileged user can obtain privilege escalation by replacing or backdoor binaries, or performing search order hijacking.
@@ -114,15 +133,19 @@ This method has three preparation steps:
 3. Start the reinstall and install PeaZip at the prepared program directory.
 
 During reinstallation the installer will detect the file lock but gives the option not close the locking process:
+
 ![](cve2-walkthrough9.png)
 
 A DeleteFile error also appears which is also possible to ignore:
+
 ![](cve2-walkthrough10.png)
 
 The installation continues and a System `cmd.exe` process spawns:
+
 ![](cve2-walkthrough11.png)
 
 Below is code to automate most of the exploit (except GUI clicking):
+
 ![](cve2-walkthrough12.png)
 
 Exploit code for Method 2a:
@@ -181,15 +204,19 @@ $fileStream.Close()
 Method 2b uses the same `peazip.exe` binary but with a race condition. Here the race condition waits for the file `peazip.url` to be created before it overwrites `peazip.exe`, as this is after the last write to `peazip.exe` but before System execution of `peazip.exe`. This will avoid the Method 2a file lock errors.
 
 A script is run which deletes `peazip.url` and starts monitoring for `peazip.url` creation:
+
 ![](cve2-walkthrough-b1.png)
 
 Creation of `peazip.url` is detected and the malicious `peazip.exe` is written and locked:
+
 ![](cve2-walkthrough-b2.png)
 
 Lastly the malicious binary is executed by the installer as System:
+
 ![](cve2-walkthrough-b3.png)
 
 Execution with code is seen below:
+
 ![](cve2-walkthrough-b4.png)
 
 Exploit code for Method 2b:
