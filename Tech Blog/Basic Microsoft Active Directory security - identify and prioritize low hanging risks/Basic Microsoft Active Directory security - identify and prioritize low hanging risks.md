@@ -1,4 +1,4 @@
-![[cover-pingcastle-100.png]]
+![Blog cover PingCastle score](cover-pingcastle-100.png)
 # Basic Microsoft Active Directory security - identify and prioritize low hanging risks
 
 Securing Microsoft Active Directory (AD) is essential for most businesses’ operations, as AD is the backbone of user access and authentication. In mainstream media the most infamous threat is ransomware shutting down businesses for weeks; this is almost always because an AD was compromised by an attacker.
